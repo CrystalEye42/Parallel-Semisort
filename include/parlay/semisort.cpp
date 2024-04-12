@@ -9,7 +9,7 @@
 using namespace std;
 using namespace parlay;
 
-size_t n = 1e9;
+size_t n = 1e8;
 #ifndef NGRAM
 size_t kNumTests = 4;
 #else
