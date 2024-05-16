@@ -1,7 +1,9 @@
 #include "semisort.h"
 
+#include <iostream>
 #include <fstream>
 #include <utility>
+#include <string>
 
 #include "generator.h"
 #include "internal/get_time.h"
@@ -17,6 +19,11 @@ size_t kNumTests = 2;
 #endif
 constexpr int NUM_ROUNDS = 5;
 
+std::ofstream myfile;
+std::string distr = "";
+std::string param1 = "";
+std::string param2 = "";
+
 std::string test_name(int id) {
   switch (id) {
     case 0: return "Ours=";
@@ -24,6 +31,16 @@ std::string test_name(int id) {
     case 2: return "Ours=-i";
     case 3: return "Ours<-i";
     default: assert(0);
+  }
+  return "";
+}
+
+std::string file_name(int id) {
+  switch (id) {
+    case 0: return "semisort equal all sizes data.txt";
+    case 1: return "semisort comp all sizes data.txt";
+    case 2: return "semisort equalint all sizes data.txt";
+    case 3: return "semisort compint all sizes data.txt";
   }
   return "";
 }
@@ -100,6 +117,7 @@ void check_correctness(const sequence<pair<K, V>> &in, int id) {
 template<typename K, typename V>
 double test(const sequence<pair<K, V>> &in, int id) {
   std::cout << "test_name: " << test_name(id) << std::endl;
+  myfile << "test_name: " << distr << ", n: " << n << ", " << param1 << ": " << param2 << std::endl;
   double total_time = 0;
   for (int i = 0; i <= NUM_ROUNDS; i++) {
     auto out = in;
@@ -124,15 +142,18 @@ double test(const sequence<pair<K, V>> &in, int id) {
       default: assert(0);
     }
     t.stop();
+    double time = t.total_time();
     if (i == 0) {
-      printf("Warmup round: %f\n", t.total_time());
+      printf("Warmup round: %f\n", time);
     } else {
-      printf("Round %d: %f\n", i, t.total_time());
-      total_time += t.total_time();
+      printf("Round %d: %f\n", i, time);
+      total_time += time;
     }
+    myfile << time << std::endl;
   }
   double avg = total_time / NUM_ROUNDS;
   printf("Average: %f\n", avg);
+  myfile << avg << std::endl;
   return avg;
 }
 
@@ -162,30 +183,32 @@ void run_all(const sequence<T> &seq, int id = -1) {
 template<class T>
 void run_all_dist(int id = -1) {
   // uniform distribution
-  vector<size_t> num_keys{1000000000, 10000000, 100000, 1000, 10};
+  vector<size_t> num_keys{100000, 1000, 10};
+  distr = "uniform";
+  param1 = "num_keys";
   for (auto v : num_keys) {
+    param2 = std::to_string(v);
     auto seq = uniform_pairs_generator<T>(v);
     run_all(seq, id);
   }
 
   // exponential distribution
-  vector<double> lambda{0.00001, 0.00002, 0.00005, 0.00007, 0.0001};
+  std::vector<double> lambda{10.0/n, 20.0/n, 50.0/n, 70.0/n, 100.0/n};
+  distr = "exponential";
+  param1 = "lambda";
   for (auto v : lambda) {
+    param2 = std::to_string(v);
     auto seq = exponential_pairs_generator<T>(v);
     run_all(seq, id);
   }
 
   // zipfian distribution
   vector<double> s{0.6, 0.8, 1, 1.2, 1.5};
+  distr = "zipfian";
+  param1 = "s";
   for (auto v : s) {
+    param2 = std::to_string(v);
     auto seq = zipfian_pairs_generator<T>(v);
-    run_all(seq, id);
-  }
-
-  // bits exp distribution
-  vector<size_t> rate{10, 30, 50, 100, 300};
-  for (auto v : rate) {
-    auto seq = bits_exp_pairs_generator<T>(v);
     run_all(seq, id);
   }
 }
@@ -269,9 +292,16 @@ int main(int argc, char *argv[]) {
   }
   printf("n: %zu\n", n);
 
-  int id = -1;
-  run_all_dist<uint32_t>(id);
-  run_all_dist<uint64_t>(id);
+  for (int i=2; i<4; i++) {
+    myfile.open(file_name(i), std::ofstream::out | std::ofstream::app);
+      std::vector<size_t> n_sizes{100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+      for (auto size: n_sizes) {
+        n = size;
+        run_all_dist<uint32_t>(i);
+      }
+    myfile.close();
+  }
+  
   // run_all_dist<__uint128_t>(id);
 
   // int id = -1;
